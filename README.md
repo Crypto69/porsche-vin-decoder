@@ -6,7 +6,7 @@ A web-based tool for decoding Porsche Vehicle Identification Numbers (VINs) from
 
 ## Screenshots
 
-![Porsche VIN Decoder - Main Interface](images/Vin%20Decoder1.webp)
+![Porsche VIN Decoder - Main Interface](images/Vin%20Decoder1-1.webp)
 
 ![Porsche VIN Decoder - VIN Breakdown](images/Vin%20Decoder2.webp)
 
