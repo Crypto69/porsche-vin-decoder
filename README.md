@@ -16,6 +16,7 @@ A web-based tool for decoding Porsche Vehicle Identification Numbers (VINs) from
 - **Multiple Formats**: Supports both European/Rest of World and USA/Canada VIN formats
 - **Visual Breakdown**: Color-coded character-by-character analysis of each VIN position
 - **Detailed Information**: Reveals model, year, factory location, engine type, body style, and serial number
+- **Random VIN Generator**: Generate valid test VINs for any Porsche model and year
 - **Example VINs**: Includes sample VINs for testing different Porsche models
 - **Responsive Design**: Works on desktop and mobile devices
 - **No Server Required**: Runs entirely in the browser with no backend dependencies
@@ -55,6 +56,27 @@ A web-based tool for decoding Porsche Vehicle Identification Numbers (VINs) from
    - Detailed meaning of each VIN character
 
 Alternatively, click on any of the example VINs to see a demonstration.
+
+## Random VIN Generator
+
+Need a valid Porsche VIN for testing? Use the built-in generator:
+
+1. Click "Generate Random VIN"
+2. Select an era:
+   - **1981+ Modern** (17-char) - Choose EUR/ROW or USA/Canada region
+   - **1970-1979 Classic** (10-char)
+   - **1980 Transitional** (10-char)
+3. Select a model from the dropdown
+4. Select a year (filtered to valid years for that model)
+5. Click "Generate"
+
+The generator creates properly formatted VINs with:
+- Correct model codes and year codes
+- Valid factory codes based on model
+- Proper check digits for USA VINs
+- Random serial numbers
+
+Generated VINs are automatically decoded so you can verify the output.
 
 ## Local Development
 
