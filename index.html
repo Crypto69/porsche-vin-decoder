@@ -1,0 +1,1818 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Porsche VIN Decoder</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --background: #09090b;
+        --foreground: #fafafa;
+        --card: #0c0c0f;
+        --card-foreground: #fafafa;
+        --popover: #0c0c0f;
+        --popover-foreground: #fafafa;
+        --primary: #75a875;
+        --primary-foreground: #09090b;
+        --secondary: #1c1c21;
+        --secondary-foreground: #fafafa;
+        --muted: #18181b;
+        --muted-foreground: #a1a1aa;
+        --accent: #27272a;
+        --accent-foreground: #fafafa;
+        --destructive: #ef4444;
+        --destructive-foreground: #fafafa;
+        --border: #27272a;
+        --input: #27272a;
+        --ring: #75a875;
+        --radius: 0.75rem;
+        --porsche-red: #c41e3a;
+        --porsche-gold: #82ed82;
+        --success: #22c55e;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "DM Sans", sans-serif;
+        background: var(--background);
+        color: var(--foreground);
+        min-height: 100vh;
+        line-height: 1.6;
+      }
+
+      .noise-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        opacity: 0.03;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        z-index: 1000;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+        position: relative;
+      }
+
+      /* Header */
+      .header {
+        text-align: center;
+        margin-bottom: 3rem;
+        position: relative;
+      }
+
+      .header::before {
+        content: "";
+        position: absolute;
+        top: -100px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(
+          ellipse at center,
+          rgba(212, 165, 116, 0.08) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+
+      .logo-icon {
+        width: 120px;
+        height: 120px;
+      }
+
+      .logo-icon img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        filter: drop-shadow(0 0 30px rgba(212, 165, 116, 0.3));
+      }
+
+      h1 {
+        font-size: clamp(2rem, 5vw, 3.5rem);
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        background: linear-gradient(
+          135deg,
+          var(--foreground) 0%,
+          var(--porsche-gold) 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .subtitle {
+        color: var(--muted-foreground);
+        font-size: 1.1rem;
+        margin-top: 0.5rem;
+      }
+
+      /* Input Section */
+      .input-section {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .input-section::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--porsche-gold),
+          transparent
+        );
+      }
+
+      .input-group {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .vin-input-wrapper {
+        flex: 1;
+        min-width: 300px;
+        position: relative;
+      }
+
+      .vin-input {
+        width: 100%;
+        padding: 1rem 1.5rem;
+        font-family: "Space Mono", monospace;
+        font-size: 1.25rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        background: var(--secondary);
+        border: 2px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--foreground);
+        outline: none;
+        transition: all 0.2s ease;
+      }
+
+      .vin-input:focus {
+        border-color: var(--porsche-gold);
+        box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.1);
+      }
+
+      .vin-input::placeholder {
+        color: var(--muted-foreground);
+        letter-spacing: 0.05em;
+      }
+
+      .decode-btn {
+        padding: 1rem 2.5rem;
+        font-family: "DM Sans", sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        background: linear-gradient(135deg, var(--porsche-gold), #c9c6c3);
+        color: var(--background);
+        border: none;
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .decode-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(212, 165, 116, 0.3);
+      }
+
+      .decode-btn:active {
+        transform: translateY(0);
+      }
+
+      /* Example VINs */
+      .examples {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border);
+      }
+
+      .examples-label {
+        font-size: 0.875rem;
+        color: var(--muted-foreground);
+        margin-bottom: 0.75rem;
+        display: block;
+      }
+
+      .example-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .example-chip {
+        padding: 0.5rem 1rem;
+        font-family: "Space Mono", monospace;
+        font-size: 0.95rem;
+        background: var(--accent);
+        border: 1px solid var(--border);
+        border-radius: 9999px;
+        color: var(--muted-foreground);
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .example-chip:hover {
+        background: var(--secondary);
+        border-color: var(--porsche-gold);
+        color: var(--foreground);
+      }
+
+      .example-chip span {
+        color: var(--porsche-gold);
+        font-size: 0.9rem;
+        margin-left: 0.5rem;
+      }
+
+      /* Results Section */
+      .results-section {
+        display: none;
+        animation: slideUp 0.4s ease;
+      }
+
+      .results-section.active {
+        display: block;
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Summary Card */
+      .summary-card {
+        background: linear-gradient(
+          135deg,
+          var(--card) 0%,
+          rgba(212, 165, 116, 0.05) 100%
+        );
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 2rem;
+        margin-bottom: 2rem;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .summary-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 200px;
+        height: 200px;
+        background: radial-gradient(
+          circle,
+          rgba(212, 165, 116, 0.1) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+
+      .summary-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+
+      .vehicle-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--foreground);
+      }
+
+      .vin-format-badge {
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        background: var(--accent);
+        border: 1px solid var(--border);
+        border-radius: 9999px;
+        color: var(--porsche-gold);
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .summary-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+
+      .summary-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted-foreground);
+      }
+
+      .summary-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--foreground);
+      }
+
+      /* VIN Breakdown */
+      .vin-breakdown {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 2rem;
+        margin-bottom: 2rem;
+      }
+
+      .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+      }
+
+      .section-title::before {
+        content: "";
+        width: 4px;
+        height: 24px;
+        background: var(--porsche-gold);
+        border-radius: 2px;
+      }
+
+      .vin-visual {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-bottom: 2rem;
+        font-family: "Space Mono", monospace;
+        font-size: 1.5rem;
+        justify-content: center;
+      }
+
+      .vin-char {
+        width: 40px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--secondary);
+        border: 2px solid var(--border);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+      }
+
+      .vin-char:hover,
+      .vin-char.active {
+        border-color: var(--porsche-gold);
+        background: rgba(212, 165, 116, 0.1);
+        transform: translateY(-3px);
+      }
+
+      .vin-char.country {
+        border-color: #ef4444;
+        background: rgba(239, 68, 68, 0.1);
+      }
+      .vin-char.manufacturer {
+        border-color: #f97316;
+        background: rgba(249, 115, 22, 0.1);
+      }
+      .vin-char.vehicle-type {
+        border-color: #eab308;
+        background: rgba(234, 179, 8, 0.1);
+      }
+      .vin-char.filler {
+        border-color: #71717a;
+        background: rgba(113, 113, 122, 0.1);
+      }
+      .vin-char.model {
+        border-color: #22c55e;
+        background: rgba(34, 197, 94, 0.1);
+      }
+      .vin-char.year {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.1);
+      }
+      .vin-char.factory {
+        border-color: #8b5cf6;
+        background: rgba(139, 92, 246, 0.1);
+      }
+      .vin-char.serial {
+        border-color: #ec4899;
+        background: rgba(236, 72, 153, 0.1);
+      }
+      .vin-char.body {
+        border-color: #14b8a6;
+        background: rgba(20, 184, 166, 0.1);
+      }
+      .vin-char.engine {
+        border-color: #f59e0b;
+        background: rgba(245, 158, 11, 0.1);
+      }
+      .vin-char.airbag {
+        border-color: #06b6d4;
+        background: rgba(6, 182, 212, 0.1);
+      }
+      .vin-char.checksum {
+        border-color: #a855f7;
+        background: rgba(168, 85, 247, 0.1);
+      }
+
+      .vin-position {
+        position: absolute;
+        bottom: -18px;
+        font-size: 0.6rem;
+        color: var(--muted-foreground);
+      }
+
+      /* Legend */
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding: 1rem;
+        background: var(--secondary);
+        border-radius: var(--radius);
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.75rem;
+        color: var(--muted-foreground);
+      }
+
+      .legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        border: 2px solid;
+      }
+
+      /* Details Table */
+      .details-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .details-table th,
+      .details-table td {
+        padding: 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .details-table th {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted-foreground);
+        font-weight: 600;
+      }
+
+      .details-table tr:hover {
+        background: var(--secondary);
+      }
+
+      .position-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+        font-family: "Space Mono", monospace;
+        font-size: 0.75rem;
+        font-weight: 600;
+        background: var(--accent);
+        border-radius: 6px;
+        color: var(--porsche-gold);
+      }
+
+      .char-badge {
+        font-family: "Space Mono", monospace;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--foreground);
+      }
+
+      .decoded-value {
+        color: var(--foreground);
+      }
+
+      .decoded-description {
+        font-size: 0.875rem;
+        color: var(--muted-foreground);
+        margin-top: 0.25rem;
+      }
+
+      /* Error State */
+      .error-message {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: var(--radius);
+        padding: 1.5rem;
+        color: #fca5a5;
+        display: none;
+      }
+
+      .error-message.active {
+        display: block;
+        animation: shake 0.4s ease;
+      }
+
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-5px);
+        }
+        75% {
+          transform: translateX(5px);
+        }
+      }
+
+      /* Footer */
+      .footer {
+        text-align: center;
+        padding: 2rem;
+        color: var(--muted-foreground);
+        font-size: 0.875rem;
+        border-top: 1px solid var(--border);
+        margin-top: 3rem;
+      }
+
+      .footer a {
+        color: var(--porsche-gold);
+        text-decoration: none;
+      }
+
+      .footer a:hover {
+        text-decoration: underline;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .container {
+          padding: 1rem;
+        }
+
+        .input-section,
+        .summary-card,
+        .vin-breakdown {
+          padding: 1.5rem;
+        }
+
+        .vin-visual {
+          font-size: 1rem;
+        }
+
+        .vin-char {
+          width: 28px;
+          height: 36px;
+        }
+
+        .details-table th,
+        .details-table td {
+          padding: 0.75rem 0.5rem;
+          font-size: 0.875rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="noise-overlay"></div>
+
+    <div class="container">
+      <header class="header">
+        <div class="logo">
+          <div class="logo-icon">
+            <img src="/images/porsche-logo.png" alt="Porsche Logo" />
+          </div>
+        </div>
+        <h1>Porsche VIN Decoder</h1>
+        <p class="subtitle">Decode any Porsche VIN from 1948 to present</p>
+      </header>
+
+      <section class="input-section">
+        <div class="input-group">
+          <div class="vin-input-wrapper">
+            <input
+              type="text"
+              class="vin-input"
+              id="vinInput"
+              placeholder="Enter VIN number..."
+              maxlength="17"
+              autocomplete="off"
+              spellcheck="false"
+            />
+          </div>
+          <button class="decode-btn" id="decodeBtn">Decode VIN</button>
+        </div>
+
+        <div class="examples">
+          <span class="examples-label">Try example VINs:</span>
+          <div class="example-chips">
+            <div class="example-chip" data-vin="WP0ZZZ96ZMS403881">
+              WP0ZZZ96ZMS403881<span>1991 911 964</span>
+            </div>
+            <div class="example-chip" data-vin="WP0ZZZ95ZJN100108">
+              WP0ZZZ95ZJN100108<span>1988 944 Turbo</span>
+            </div>
+            <div class="example-chip" data-vin="WP0AA2995XS626544">
+              WP0AA2995XS626544<span>1999 996 USA</span>
+            </div>
+            <div class="example-chip" data-vin="WP0ZZZ99ZNS410156">
+              WP0ZZZ99ZNS410156<span>1992 911 993</span>
+            </div>
+            <div class="example-chip" data-vin="9249104924">
+              9249104924<span>1979 924 92kW</span>
+            </div>
+            <div class="example-chip" data-vin="91A0134831">
+              91A0134831<span>1980 911 SC</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="error-message" id="errorMessage">
+        <strong>Invalid VIN</strong>
+        <p id="errorText"></p>
+      </div>
+
+      <section class="results-section" id="resultsSection">
+        <div class="summary-card">
+          <div class="summary-header">
+            <h2 class="vehicle-title" id="vehicleTitle">—</h2>
+            <span class="vin-format-badge" id="formatBadge">—</span>
+          </div>
+          <div class="summary-grid" id="summaryGrid"></div>
+        </div>
+
+        <div class="vin-breakdown">
+          <h3 class="section-title">VIN Breakdown</h3>
+          <div class="vin-visual" id="vinVisual"></div>
+          <div class="legend" id="legend"></div>
+          <table class="details-table">
+            <thead>
+              <tr>
+                <th>Pos</th>
+                <th>Char</th>
+                <th>Meaning</th>
+              </tr>
+            </thead>
+            <tbody id="detailsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="footer">
+        <p>
+          Data sourced from
+          <a
+            href="https://www.stuttcars.com/porsche-data/porsche-vin-decoder/"
+            target="_blank"
+            >Stuttcars</a
+          >
+        </p>
+        <p style="margin-top: 0.5rem; font-size: 0.75rem">
+          Supports VINs from 1948–present for Europe/ROW and USA/Canada markets
+        </p>
+      </footer>
+    </div>
+
+    <script>
+      // Comprehensive Porsche VIN Data
+      const VIN_DATA = {
+        // Model Year Codes (Position 10 for 1981+)
+        modelYears: {
+          B: 1981,
+          C: 1982,
+          D: 1983,
+          E: 1984,
+          F: 1985,
+          G: 1986,
+          H: 1987,
+          J: 1988,
+          K: 1989,
+          L: 1990,
+          M: 1991,
+          N: 1992,
+          P: 1993,
+          R: 1994,
+          S: 1995,
+          T: 1996,
+          V: 1997,
+          W: 1998,
+          X: 1999,
+          Y: 2000,
+          1: 2001,
+          2: 2002,
+          3: 2003,
+          4: 2004,
+          5: 2005,
+          6: 2006,
+          7: 2007,
+          8: 2008,
+          9: 2009,
+          A: 2010,
+          // Note: After 2009, letters repeat starting with A
+        },
+
+        // Extended model years (2010+)
+        modelYearsExtended: {
+          A: 2010,
+          B: 2011,
+          C: 2012,
+          D: 2013,
+          E: 2014,
+          F: 2015,
+          G: 2016,
+          H: 2017,
+          J: 2018,
+          K: 2019,
+          L: 2020,
+          M: 2021,
+          N: 2022,
+          P: 2023,
+          R: 2024,
+          S: 2025,
+          T: 2026,
+          V: 2027,
+          W: 2028,
+          X: 2029,
+        },
+
+        // Factory Codes
+        factories: {
+          S: {
+            name: "Stuttgart",
+            desc: "Main Porsche factory - 911, 928, 959, 968, Boxster, Cayman",
+          },
+          N: { name: "Neckarsulm", desc: "Audi factory - 924, 944" },
+          U: {
+            name: "Uusikaupunki",
+            desc: "Valmet factory (Finland) - Boxster 986, Boxster/Cayman 987",
+          },
+          L: { name: "Leipzig", desc: "Cayenne, Carrera GT, Panamera, Macan" },
+          K: {
+            name: "Osnabrück",
+            desc: "VW factory - Boxster, Cayman, Cayenne",
+          },
+          D: { name: "Bratislava", desc: "VW factory (Slovakia) - Cayenne" },
+        },
+
+        // EUR/ROW Model Codes (positions 7, 8, 12)
+        modelsEUR: {
+          911: { name: "911 G-Model", years: "1981-1989" },
+          930: { name: "911 Turbo (G-Model)", years: "1975-1989" },
+          964: { name: "911 (964)", years: "1989-1994" },
+          993: { name: "911 (993)", years: "1993-1998" },
+          996: { name: "911 (996)", years: "1997-2004" },
+          997: { name: "911 (997)", years: "2004-2012" },
+          991: { name: "911 (991)", years: "2011-2019" },
+          992: { name: "911 (992)", years: "2019-present" },
+          924: { name: "924", years: "1976-1988" },
+          931: { name: "924 Turbo", years: "1979-1983" },
+          937: { name: "924 Carrera GT/GTS/GTR", years: "1980-1981" },
+          928: { name: "928", years: "1977-1995" },
+          944: { name: "944", years: "1982-1991" },
+          951: { name: "944 Turbo", years: "1985-1991" },
+          968: { name: "968", years: "1992-1995" },
+          980: { name: "Carrera GT", years: "2004-2006" },
+          986: { name: "Boxster", years: "1997-2004" },
+          987: { name: "Boxster/Cayman", years: "2005-2012" },
+          981: { name: "Boxster/Cayman", years: "2012-2016" },
+          982: { name: "718 Boxster/Cayman", years: "2016-present" },
+          "9PA": { name: "Cayenne 955/957", years: "2002-2010" },
+          "92A": { name: "Cayenne 958", years: "2010-2018" },
+          "9YA": { name: "Cayenne", years: "2018-present" },
+          970: { name: "Panamera", years: "2009-2016" },
+          971: { name: "Panamera", years: "2016-present" },
+          "95B": { name: "Macan", years: "2014-present" },
+          Y1A: { name: "Taycan", years: "2020-present" },
+          959: { name: "959", years: "1986-1993" },
+          918: { name: "918 Spyder", years: "2013-2015" },
+        },
+
+        // USA/Canada Model Codes (positions 8, 12)
+        modelsUSA: {
+          11: { name: "911 (G-Model)", years: "1981-1989" },
+          18: { name: "918 Spyder", years: "2013-2015" },
+          24: { name: "924", years: "1976-1988" },
+          28: { name: "928", years: "1977-1995" },
+          30: { name: "911 Turbo (G-Model)", years: "1975-1989" },
+          31: { name: "924 Turbo", years: "1979-1983" },
+          44: { name: "944", years: "1982-1991" },
+          51: { name: "944 Turbo", years: "1985-1991" },
+          "5B": { name: "Macan", years: "2014-present" },
+          64: { name: "911 (964)", years: "1989-1994" },
+          68: { name: "968", years: "1992-1995" },
+          70: { name: "Panamera", years: "2009-2016" },
+          71: { name: "Panamera", years: "2016-present" },
+          80: { name: "Carrera GT", years: "2004-2006" },
+          81: { name: "Boxster/Cayman (981)", years: "2012-2016" },
+          82: { name: "718 Boxster/Cayman", years: "2016-present" },
+          86: { name: "Boxster (986)", years: "1997-2004" },
+          87: { name: "Boxster/Cayman (987)", years: "2005-2012" },
+          91: { name: "911 (991)", years: "2011-2019" },
+          92: { name: "911 (992)", years: "2019-present" },
+          93: { name: "911 (993)", years: "1993-1998" },
+          96: { name: "911 (996)", years: "1997-2004" },
+          97: { name: "911 (997)", years: "2004-2012" },
+          PA: { name: "Cayenne 955/957", years: "2002-2010" },
+          "2A": { name: "Cayenne 958", years: "2010-2018" },
+          YA: { name: "Cayenne", years: "2018-present" },
+        },
+
+        // USA Body Types (Position 4)
+        bodyTypesUSA: {
+          A: "Coupé (911, 924, 928, 944, 968, Cayman, Cayenne, Panamera)",
+          B: "Targa (964/996/997)",
+          C: "Cabriolet/Boxster/Carrera GT",
+          D: "Targa (993)",
+          E: "Targa/Cabriolet (911 SC, G-Model)",
+          J: "928 (until 1990) / 911 Turbo Coupé (G-Model)",
+        },
+
+        // USA Engine Types (Position 5)
+        engineTypesUSA: {
+          A: "Base engine - SC, 924, 944 2.5, 964 Turbo 3.3, Carrera, Boxster base, Cayenne V6, Panamera V6",
+          B: "Higher spec - 3.2, Turbo, 944 S2, 964 Carrera, 996 Turbo, 997 S/GTS, Boxster S, Cayman S, Cayenne S, Panamera S",
+          C: "Performance - 964 Turbo 3.6, 993 Turbo, 996 GT3, 997 GT3, Cayenne Turbo, Panamera Turbo",
+          D: "High Performance - 997 Turbo/GT2, Cayenne GTS, Panamera Hybrid",
+          E: "997 GT2 RS, Cayenne Hybrid",
+          F: "997 GT3 RS 4.0",
+        },
+
+        // USA Airbag Types (Position 6)
+        airbagTypesUSA: {
+          0: "No airbags",
+          2: "Front airbags only",
+          E: "No side airbags",
+          F: "Front and side airbags",
+        },
+
+        // 1970-1979 Model Variants (Position 5) - organized by model
+        variants1970s: {
+          0: { 912: "912E 1976" },
+          1: {
+            911: "911T 1970-1971, 911T/E 1972-1973, 911T/K 1973, 911 G-Model 110kW",
+            924: "92kW",
+            928: "177kW",
+          },
+          2: {
+            911: "911E, 911 G-Model S 118/121kW, 911 SC",
+            924: "74/85kW",
+            928: "169kW",
+          },
+          3: {
+            911: "911S 1st Gen, 916, 911 G-Model 121kW, 911 S 129kW, 911 SC",
+            924: "74/85kW",
+          },
+          4: {
+            914: "914/6",
+            911: "911 Carrera 2.7 129kW 1974, Carrera 2.7 118/121kW 1975",
+            924: "Turbo",
+          },
+          5: { 911: "911T/V" },
+          6: {
+            911: "911 Carrera RS, Carrera 2.7 154kW, Carrera 3.0, Carrera RS 3.0, Carrera RSR",
+          },
+          7: {
+            911: "911 Turbo 191kW, 195kW, 221kW",
+            930: "Turbo 191kW, 195kW, 221kW",
+          },
+          8: { 911: "911 Turbo 180kW, 195kW", 930: "Turbo 180kW, 195kW" },
+        },
+
+        // 1970-1979 Sub-models (Position 6)
+        subModels1970s: {
+          0: "911 Coupé, 924",
+          1: "911 Targa, 924",
+          2: "911 Coupé (Karmann)",
+          3: "914/6, 924",
+          4: "924",
+        },
+
+        // 1980 Variant Info (Position 6) - organized by model
+        variants1980: {
+          0: { 928: "170/177kW" },
+          1: { 924: "92kW", 928: "170kW" },
+          2: { 928: "928 S" },
+          3: { 911: "SC", 924: "85kW" },
+          4: { 911: "SC", 924: "Turbo 125kW" },
+          5: { 924: "Turbo 110kW" },
+          7: { 911: "Turbo", 930: "Turbo" },
+        },
+
+        // 1968 Variants (Position 4)
+        variants1968: {
+          0: "911S Coupé, 911L Coupé, 912 Coupé (Karmann)",
+          1: "911L Coupé",
+          2: "911T Coupé, 912 Coupé",
+          3: "911S Coupé",
+          5: "911L Targa, 911S Targa",
+          6: "911L Targa",
+          7: "911T Targa, 912 Targa",
+          8: "911 Targa",
+          9: "911 R",
+        },
+
+        // 1969 Variants (Position 4)
+        variants1969: {
+          0: "912",
+          1: "911T",
+          2: "911E",
+          3: "911S",
+        },
+
+        // 1969 Body Styles (Position 5)
+        bodyStyles1969: {
+          0: "Coupé",
+          1: "Targa",
+          2: "Coupé or Targa",
+        },
+      };
+
+      // Detect VIN format
+      function detectVINFormat(vin) {
+        const len = vin.length;
+
+        if (len === 17) {
+          // Check if EUR/ROW or USA/Canada
+          if (vin.substring(3, 6) === "ZZZ") {
+            return { type: "1981-EUR", name: "1981+ Europe/ROW" };
+          } else {
+            return { type: "1981-USA", name: "1981+ USA/Canada" };
+          }
+        } else if (len === 10) {
+          // Check for 1980 format (has 'A' in position 3)
+          if (vin[2] === "A") {
+            return { type: "1980", name: "1980" };
+          }
+          // Check for 914/4 format (starts with 47)
+          if (vin.substring(0, 2) === "47") {
+            return { type: "914-4", name: "1970-1976 914/4" };
+          }
+          return { type: "1970-1979", name: "1970-1979" };
+        } else if (len === 9) {
+          return { type: "1969", name: "1969" };
+        } else if (len === 8) {
+          return { type: "1968", name: "1968" };
+        } else if (len === 5 || len === 6) {
+          return { type: "1948-1968", name: "1948-1968" };
+        }
+
+        return null;
+      }
+
+      // Get model year from code
+      function getModelYear(code, format) {
+        // For older formats, handle differently
+        if (format.type === "1970-1979") {
+          const yearDigit = parseInt(code);
+          return 1970 + yearDigit;
+        }
+        if (format.type === "914-4") {
+          const yearDigit = parseInt(code);
+          return 1970 + yearDigit;
+        }
+
+        // For 1981+ formats
+        const year = VIN_DATA.modelYears[code];
+        if (year) return year;
+
+        // Extended years (2010+)
+        return VIN_DATA.modelYearsExtended[code];
+      }
+
+      // Decode EUR/ROW VIN (1981+)
+      function decodeEURVIN(vin) {
+        const chars = vin.split("");
+        const modelCode = chars[6] + chars[7] + chars[11];
+        const yearCode = chars[9];
+        const factoryCode = chars[10];
+        const serialNum = chars.slice(12).join("");
+
+        const model = VIN_DATA.modelsEUR[modelCode] || {
+          name: "Unknown Model",
+          years: "",
+        };
+        const year = getModelYear(yearCode, { type: "1981-EUR" });
+        const factory = VIN_DATA.factories[factoryCode] || {
+          name: "Unknown",
+          desc: "",
+        };
+
+        return {
+          country: {
+            char: chars[0],
+            value: "Germany",
+            desc:
+              chars[0] === "W"
+                ? "Germany (West Germany until 1989)"
+                : "Unknown",
+          },
+          manufacturer: {
+            char: chars[1],
+            value: "Porsche",
+            desc: chars[1] === "P" ? "Porsche" : "Unknown",
+          },
+          vehicleType: {
+            char: chars[2],
+            value: chars[2] === "0" ? "Sports/Passenger Car" : "SUV",
+            desc: "",
+          },
+          filler1: {
+            char: chars[3],
+            value: "Filler",
+            desc: "Z = Europe/Rest of World",
+          },
+          filler2: {
+            char: chars[4],
+            value: "Filler",
+            desc: "Z = Europe/Rest of World",
+          },
+          filler3: {
+            char: chars[5],
+            value: "Filler",
+            desc: "Z = Europe/Rest of World",
+          },
+          model1: {
+            char: chars[6],
+            value: "Model (Part 1)",
+            desc: `Model code: ${modelCode}`,
+          },
+          model2: {
+            char: chars[7],
+            value: "Model (Part 2)",
+            desc: `${model.name} (${model.years})`,
+          },
+          filler4: {
+            char: chars[8],
+            value: "Filler",
+            desc: "Z = Europe/Rest of World",
+          },
+          year: {
+            char: chars[9],
+            value: year || "Unknown",
+            desc: `Model Year ${year}`,
+          },
+          factory: { char: chars[10], value: factory.name, desc: factory.desc },
+          model3: {
+            char: chars[11],
+            value: "Model (Part 3)",
+            desc: `Completes model code: ${modelCode}`,
+          },
+          serial: {
+            char: serialNum,
+            value: `Serial #${serialNum}`,
+            desc: "Production sequence number",
+          },
+
+          summary: {
+            model: model.name,
+            modelCode: modelCode,
+            year: year,
+            factory: factory.name,
+            serial: serialNum,
+            title: `${year} Porsche ${model.name}`,
+          },
+        };
+      }
+
+      // Decode USA/Canada VIN (1981+)
+      function decodeUSAVIN(vin) {
+        const chars = vin.split("");
+        const modelCode = chars[7] + chars[11];
+        const yearCode = chars[9];
+        const factoryCode = chars[10];
+        const serialNum = chars.slice(12).join("");
+        const bodyCode = chars[3];
+        const engineCode = chars[4];
+        const airbagCode = chars[5];
+
+        const model = VIN_DATA.modelsUSA[modelCode] || {
+          name: "Unknown Model",
+          years: "",
+        };
+        const year = getModelYear(yearCode, { type: "1981-USA" });
+        const factory = VIN_DATA.factories[factoryCode] || {
+          name: "Unknown",
+          desc: "",
+        };
+        const body = VIN_DATA.bodyTypesUSA[bodyCode] || "Unknown";
+        const engine = VIN_DATA.engineTypesUSA[engineCode] || "Unknown";
+        const airbag = VIN_DATA.airbagTypesUSA[airbagCode] || "Unknown";
+
+        return {
+          country: { char: chars[0], value: "Germany", desc: "W = Germany" },
+          manufacturer: {
+            char: chars[1],
+            value: "Porsche",
+            desc: "P = Porsche",
+          },
+          vehicleType: {
+            char: chars[2],
+            value: chars[2] === "0" ? "Sports/Passenger Car" : "SUV",
+            desc: "",
+          },
+          bodyType: { char: chars[3], value: "Body Type", desc: body },
+          engineType: { char: chars[4], value: "Engine", desc: engine },
+          airbags: { char: chars[5], value: "Airbags", desc: airbag },
+          prePost2010: {
+            char: chars[6],
+            value: chars[6] === "9" ? "Pre-2010" : "2010+",
+            desc: "9 = up to MY2009, A = MY2010+",
+          },
+          model1: {
+            char: chars[7],
+            value: "Model (Part 1)",
+            desc: `Model code: ${modelCode}`,
+          },
+          checksum: {
+            char: chars[8],
+            value: "Check Digit",
+            desc: "VIN validation checksum",
+          },
+          year: {
+            char: chars[9],
+            value: year || "Unknown",
+            desc: `Model Year ${year}`,
+          },
+          factory: { char: chars[10], value: factory.name, desc: factory.desc },
+          model2: {
+            char: chars[11],
+            value: "Model (Part 2)",
+            desc: `${model.name} (${model.years})`,
+          },
+          serial: {
+            char: serialNum,
+            value: `Serial #${serialNum}`,
+            desc: "Production sequence number",
+          },
+
+          summary: {
+            model: model.name,
+            modelCode: modelCode,
+            year: year,
+            factory: factory.name,
+            body: body,
+            engine: engine,
+            serial: serialNum,
+            title: `${year} Porsche ${model.name}`,
+          },
+        };
+      }
+
+      // Decode 1970-1979 VIN
+      function decode1970sVIN(vin) {
+        const chars = vin.split("");
+        const modelCode = chars[0] + chars[1] + chars[2];
+        const yearDigit = chars[3];
+        const variantCode = chars[4];
+        const subModelCode = chars[5];
+        const serialNum = chars.slice(6).join("");
+
+        const year = 1970 + parseInt(yearDigit);
+
+        // Get variant based on model code
+        const variantData = VIN_DATA.variants1970s[variantCode];
+        let variant = "Unknown";
+        if (variantData) {
+          // Try to find model-specific variant
+          if (typeof variantData === "object") {
+            variant =
+              variantData[modelCode] ||
+              variantData["911"] ||
+              Object.values(variantData)[0] ||
+              "Unknown";
+          } else {
+            variant = variantData;
+          }
+        }
+
+        const subModel = VIN_DATA.subModels1970s[subModelCode] || "Unknown";
+
+        let modelName = "Unknown";
+        if (modelCode === "911") modelName = "911";
+        else if (modelCode === "914") modelName = "914/6";
+        else if (modelCode === "924") modelName = "924";
+        else if (modelCode === "928") modelName = "928";
+        else if (modelCode === "930") modelName = "911 Turbo";
+        else if (modelCode === "931") modelName = "924 Turbo";
+
+        return {
+          model1: {
+            char: chars[0],
+            value: "Model (Part 1)",
+            desc: `Model: ${modelCode}`,
+          },
+          model2: { char: chars[1], value: "Model (Part 2)", desc: modelName },
+          model3: { char: chars[2], value: "Model (Part 3)", desc: "" },
+          year: { char: chars[3], value: year, desc: `Model Year ${year}` },
+          variant: { char: chars[4], value: "Variant", desc: variant },
+          subModel: { char: chars[5], value: "Sub-model", desc: subModel },
+          serial: {
+            char: serialNum,
+            value: `Serial #${serialNum}`,
+            desc: "Production sequence",
+          },
+
+          summary: {
+            model: modelName,
+            modelCode: modelCode,
+            year: year,
+            variant: variant,
+            serial: serialNum,
+            title: `${year} Porsche ${modelName}`,
+          },
+        };
+      }
+
+      // Decode 1980 VIN
+      function decode1980VIN(vin) {
+        const chars = vin.split("");
+        const modelCode = chars[0] + chars[1] + chars[4];
+        const variantCode = chars[5];
+        const serialNum = chars.slice(6).join("");
+
+        // Get variant based on model code
+        const variantData = VIN_DATA.variants1980[variantCode];
+        let variant = "Unknown";
+        if (variantData) {
+          if (typeof variantData === "object") {
+            variant =
+              variantData[modelCode] ||
+              Object.values(variantData)[0] ||
+              "Unknown";
+          } else {
+            variant = variantData;
+          }
+        }
+
+        let modelName = "Unknown";
+        if (modelCode === "911") modelName = "911";
+        else if (modelCode === "924") modelName = "924";
+        else if (modelCode === "928") modelName = "928";
+
+        return {
+          model1: {
+            char: chars[0],
+            value: "Model (Part 1)",
+            desc: `Model: ${modelCode}`,
+          },
+          model2: { char: chars[1], value: "Model (Part 2)", desc: modelName },
+          year: { char: chars[2], value: 1980, desc: "A = 1980" },
+          filler: { char: chars[3], value: "Filler", desc: "0 (Zero)" },
+          model3: { char: chars[4], value: "Model (Part 3)", desc: "" },
+          variant: { char: chars[5], value: "Variant", desc: variant },
+          serial: {
+            char: serialNum,
+            value: `Serial #${serialNum}`,
+            desc: "Production sequence",
+          },
+
+          summary: {
+            model: modelName,
+            modelCode: modelCode,
+            year: 1980,
+            variant: variant,
+            serial: serialNum,
+            title: `1980 Porsche ${modelName}`,
+          },
+        };
+      }
+
+      // Decode 914/4 VIN
+      function decode914VIN(vin) {
+        const chars = vin.split("");
+        const yearDigit = chars[2];
+        const serialNum = chars.slice(5).join("");
+
+        const year = 1970 + parseInt(yearDigit);
+
+        return {
+          model1: {
+            char: chars[0],
+            value: "Model (Part 1)",
+            desc: "Model: 47 (914/4)",
+          },
+          model2: { char: chars[1], value: "Model (Part 2)", desc: "914/4" },
+          year: { char: chars[2], value: year, desc: `Model Year ${year}` },
+          body1: {
+            char: chars[3],
+            value: "Body (Part 1)",
+            desc: "29 = Karmann (Osnabrück)",
+          },
+          body2: {
+            char: chars[4],
+            value: "Body (Part 2)",
+            desc: "Body by Karmann",
+          },
+          serial: {
+            char: serialNum,
+            value: `Serial #${serialNum}`,
+            desc: "Production sequence",
+          },
+
+          summary: {
+            model: "914/4",
+            modelCode: "47",
+            year: year,
+            factory: "Karmann (Osnabrück)",
+            serial: serialNum,
+            title: `${year} Porsche 914/4`,
+          },
+        };
+      }
+
+      // Decode 1968 VIN
+      function decode1968VIN(vin) {
+        const chars = vin.split("");
+        const modelCode = chars[0] + chars[1];
+        const variantCode = chars[3];
+        const serialNum = chars.slice(4).join("");
+
+        let modelName = modelCode === "11" ? "911" : "912";
+        const variant = VIN_DATA.variants1968[variantCode] || "Unknown";
+
+        return {
+          model1: {
+            char: chars[0],
+            value: "Model (Part 1)",
+            desc: `Model: ${modelCode}`,
+          },
+          model2: { char: chars[1], value: "Model (Part 2)", desc: modelName },
+          year: { char: chars[2], value: 1968, desc: "8 = 1968" },
+          variant: { char: chars[3], value: "Variant", desc: variant },
+          serial: {
+            char: serialNum,
+            value: `Serial #${serialNum}`,
+            desc: "Production sequence",
+          },
+
+          summary: {
+            model: modelName,
+            modelCode: modelCode,
+            year: 1968,
+            variant: variant,
+            serial: serialNum,
+            title: `1968 Porsche ${modelName}`,
+          },
+        };
+      }
+
+      // Decode 1969 VIN
+      function decode1969VIN(vin) {
+        const chars = vin.split("");
+        const modelCode = chars[0] + chars[1];
+        const variantCode = chars[3];
+        const bodyCode = chars[4];
+        const serialNum = chars.slice(5).join("");
+
+        let modelName = modelCode === "11" ? "911" : "912";
+        const variant = VIN_DATA.variants1969[variantCode] || "Unknown";
+        const body = VIN_DATA.bodyStyles1969[bodyCode] || "Unknown";
+
+        return {
+          model1: {
+            char: chars[0],
+            value: "Model (Part 1)",
+            desc: `Model: ${modelCode}`,
+          },
+          model2: { char: chars[1], value: "Model (Part 2)", desc: modelName },
+          year: { char: chars[2], value: 1969, desc: "9 = 1969" },
+          variant: { char: chars[3], value: "Variant", desc: variant },
+          body: { char: chars[4], value: "Body Style", desc: body },
+          serial: {
+            char: serialNum,
+            value: `Serial #${serialNum}`,
+            desc: "Production sequence",
+          },
+
+          summary: {
+            model: modelName,
+            modelCode: modelCode,
+            year: 1969,
+            variant: variant,
+            body: body,
+            serial: serialNum,
+            title: `1969 Porsche ${modelName}`,
+          },
+        };
+      }
+
+      // Decode early VIN (1948-1968)
+      function decodeEarlyVIN(vin) {
+        return {
+          serial: {
+            char: vin,
+            value: `Chassis #${vin}`,
+            desc: "Sequential production number",
+          },
+
+          summary: {
+            model: "356 / Early 911/912",
+            serial: vin,
+            title: `Porsche (Chassis #${vin})`,
+          },
+        };
+      }
+
+      // Main decode function
+      function decodeVIN(vin) {
+        vin = vin.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+        const format = detectVINFormat(vin);
+        if (!format) {
+          return {
+            error:
+              "Unable to determine VIN format. Please check the VIN length and format.",
+          };
+        }
+
+        let result;
+        switch (format.type) {
+          case "1981-EUR":
+            result = decodeEURVIN(vin);
+            break;
+          case "1981-USA":
+            result = decodeUSAVIN(vin);
+            break;
+          case "1970-1979":
+            result = decode1970sVIN(vin);
+            break;
+          case "1980":
+            result = decode1980VIN(vin);
+            break;
+          case "914-4":
+            result = decode914VIN(vin);
+            break;
+          case "1968":
+            result = decode1968VIN(vin);
+            break;
+          case "1969":
+            result = decode1969VIN(vin);
+            break;
+          case "1948-1968":
+            result = decodeEarlyVIN(vin);
+            break;
+          default:
+            return { error: "Unsupported VIN format." };
+        }
+
+        result.format = format;
+        result.vin = vin;
+        return result;
+      }
+
+      // Render results
+      function renderResults(decoded) {
+        const resultsSection = document.getElementById("resultsSection");
+        const errorMessage = document.getElementById("errorMessage");
+
+        if (decoded.error) {
+          errorMessage.querySelector("#errorText").textContent = decoded.error;
+          errorMessage.classList.add("active");
+          resultsSection.classList.remove("active");
+          return;
+        }
+
+        errorMessage.classList.remove("active");
+        resultsSection.classList.add("active");
+
+        // Vehicle title
+        document.getElementById("vehicleTitle").textContent =
+          decoded.summary.title;
+        document.getElementById("formatBadge").textContent =
+          decoded.format.name;
+
+        // Summary grid
+        const summaryGrid = document.getElementById("summaryGrid");
+        summaryGrid.innerHTML = "";
+
+        const summaryItems = [
+          { label: "Model", value: decoded.summary.model },
+          { label: "Model Code", value: decoded.summary.modelCode || "—" },
+          { label: "Year", value: decoded.summary.year || "—" },
+          { label: "Factory", value: decoded.summary.factory || "—" },
+          { label: "Serial Number", value: decoded.summary.serial || "—" },
+        ];
+
+        summaryItems.forEach((item) => {
+          if (item.value && item.value !== "—") {
+            const div = document.createElement("div");
+            div.className = "summary-item";
+            div.innerHTML = `
+                        <span class="summary-label">${item.label}</span>
+                        <span class="summary-value">${item.value}</span>
+                    `;
+            summaryGrid.appendChild(div);
+          }
+        });
+
+        // VIN visual breakdown
+        const vinVisual = document.getElementById("vinVisual");
+        vinVisual.innerHTML = "";
+
+        const chars = decoded.vin.split("");
+        const colorClasses = getColorClasses(decoded.format.type, chars.length);
+
+        chars.forEach((char, i) => {
+          const div = document.createElement("div");
+          div.className = `vin-char ${colorClasses[i] || ""}`;
+          div.innerHTML = `
+                    ${char}
+                    <span class="vin-position">${i + 1}</span>
+                `;
+          vinVisual.appendChild(div);
+        });
+
+        // Legend
+        const legend = document.getElementById("legend");
+        legend.innerHTML = getLegendHTML(decoded.format.type);
+
+        // Details table
+        const detailsBody = document.getElementById("detailsBody");
+        detailsBody.innerHTML = "";
+
+        const entries = Object.entries(decoded).filter(
+          ([key]) => !["format", "vin", "summary", "error"].includes(key)
+        );
+
+        let pos = 1;
+        entries.forEach(([key, data]) => {
+          if (data && data.char) {
+            const tr = document.createElement("tr");
+            const charLen = data.char.length;
+            const posDisplay =
+              charLen > 1 ? `${pos}-${pos + charLen - 1}` : pos;
+
+            tr.innerHTML = `
+                        <td><span class="position-badge">${posDisplay}</span></td>
+                        <td><span class="char-badge">${data.char}</span></td>
+                        <td>
+                            <div class="decoded-value">${data.value}</div>
+                            ${
+                              data.desc
+                                ? `<div class="decoded-description">${data.desc}</div>`
+                                : ""
+                            }
+                        </td>
+                    `;
+            detailsBody.appendChild(tr);
+            pos += charLen;
+          }
+        });
+      }
+
+      // Get color classes for VIN characters
+      function getColorClasses(formatType, length) {
+        if (formatType === "1981-EUR") {
+          return [
+            "country",
+            "manufacturer",
+            "vehicle-type",
+            "filler",
+            "filler",
+            "filler",
+            "model",
+            "model",
+            "filler",
+            "year",
+            "factory",
+            "model",
+            "serial",
+            "serial",
+            "serial",
+            "serial",
+            "serial",
+          ];
+        } else if (formatType === "1981-USA") {
+          return [
+            "country",
+            "manufacturer",
+            "vehicle-type",
+            "body",
+            "engine",
+            "airbag",
+            "filler",
+            "model",
+            "checksum",
+            "year",
+            "factory",
+            "model",
+            "serial",
+            "serial",
+            "serial",
+            "serial",
+            "serial",
+          ];
+        } else if (formatType === "1970-1979" || formatType === "914-4") {
+          return [
+            "model",
+            "model",
+            "model",
+            "year",
+            "body",
+            "body",
+            "serial",
+            "serial",
+            "serial",
+            "serial",
+          ];
+        } else if (formatType === "1980") {
+          return [
+            "model",
+            "model",
+            "year",
+            "filler",
+            "model",
+            "body",
+            "serial",
+            "serial",
+            "serial",
+            "serial",
+          ];
+        } else if (formatType === "1968") {
+          return [
+            "model",
+            "model",
+            "year",
+            "body",
+            "serial",
+            "serial",
+            "serial",
+            "serial",
+          ];
+        } else if (formatType === "1969") {
+          return [
+            "model",
+            "model",
+            "year",
+            "body",
+            "body",
+            "serial",
+            "serial",
+            "serial",
+            "serial",
+          ];
+        }
+        return [];
+      }
+
+      // Get legend HTML
+      function getLegendHTML(formatType) {
+        const items = {
+          country: { color: "#ef4444", label: "Country" },
+          manufacturer: { color: "#f97316", label: "Manufacturer" },
+          "vehicle-type": { color: "#eab308", label: "Vehicle Type" },
+          model: { color: "#22c55e", label: "Model" },
+          year: { color: "#3b82f6", label: "Year" },
+          factory: { color: "#8b5cf6", label: "Factory" },
+          serial: { color: "#ec4899", label: "Serial" },
+          filler: { color: "#71717a", label: "Filler" },
+          body: { color: "#14b8a6", label: "Body/Variant" },
+          engine: { color: "#f59e0b", label: "Engine" },
+          airbag: { color: "#06b6d4", label: "Airbags" },
+          checksum: { color: "#a855f7", label: "Checksum" },
+        };
+
+        let relevantItems = [];
+        if (formatType === "1981-EUR") {
+          relevantItems = [
+            "country",
+            "manufacturer",
+            "vehicle-type",
+            "model",
+            "year",
+            "factory",
+            "serial",
+            "filler",
+          ];
+        } else if (formatType === "1981-USA") {
+          relevantItems = [
+            "country",
+            "manufacturer",
+            "vehicle-type",
+            "body",
+            "engine",
+            "airbag",
+            "model",
+            "year",
+            "factory",
+            "serial",
+            "checksum",
+          ];
+        } else {
+          relevantItems = ["model", "year", "body", "serial"];
+        }
+
+        return relevantItems
+          .map((key) => {
+            const item = items[key];
+            return `
+                    <div class="legend-item">
+                        <div class="legend-color" style="border-color: ${item.color}; background: ${item.color}20;"></div>
+                        <span>${item.label}</span>
+                    </div>
+                `;
+          })
+          .join("");
+      }
+
+      // Event listeners
+      document.getElementById("decodeBtn").addEventListener("click", () => {
+        const vin = document.getElementById("vinInput").value.trim();
+        if (vin) {
+          const decoded = decodeVIN(vin);
+          renderResults(decoded);
+        }
+      });
+
+      document.getElementById("vinInput").addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          document.getElementById("decodeBtn").click();
+        }
+      });
+
+      // Example chips
+      document.querySelectorAll(".example-chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const vin = chip.getAttribute("data-vin");
+          document.getElementById("vinInput").value = vin;
+          const decoded = decodeVIN(vin);
+          renderResults(decoded);
+        });
+      });
+
+      // Auto-uppercase input
+      document.getElementById("vinInput").addEventListener("input", (e) => {
+        e.target.value = e.target.value.toUpperCase();
+      });
+    </script>
+  </body>
+</html>
